@@ -1,2 +1,2 @@
 # IA_Server
-test
+just take them and edit yourself
