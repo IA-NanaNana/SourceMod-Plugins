@@ -3,4 +3,4 @@ Tested for normal on Win and Linux
 
 
 
-Required Extension : [URL="http://forums.alliedmods.net/showthread.php?p=2588686#post2588686"][U]DHooks (Dynamic Hooks)[/U] [/URL]
+Required Extension : [DHooks (Dynamic Hooks)](http://forums.alliedmods.net/showthread.php?p=2588686#post2588686)
