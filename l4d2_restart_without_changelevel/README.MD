@@ -1,5 +1,4 @@
 According to many people thought the restart scenario from vote will restart the current level, but original is not, so this plugin came out.
 Make the mp_restartgame and restart scenario from vote no longer change map to first map of scenario.
-
-
-Required Extension : DHooks (Dynamic Hooks) 
+<br>
+### Required Extension : DHooks (Dynamic Hooks) 
