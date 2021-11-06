@@ -1,0 +1,124 @@
+"Games"
+{
+	"#default"
+	{
+		"Functions"
+		{
+			"Restart"
+			{
+				"signature"		"Restart"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"address"
+			}
+			"RestartScenarioFromVote"
+			{
+				"signature"		"RestartScenarioFromVote"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"address"
+				"arguments" 
+				{
+					"a1" 
+					{
+						"type"        "charptr" 
+					}
+				}
+			}
+		}
+	}
+    "left4dead2"
+    {
+		"Offsets"
+		{
+			"CDirector::Restart__Patch1"
+			{
+				"windows"	"172"
+				"linux"		"95"
+			}
+			"CDirector::m_bMissionLost"
+			{
+				"windows"	"452"
+				"linux"		"452"
+			}
+		}
+		"Addresses"
+		{
+			"CDirector::Restart"
+			{
+				"signature"			"Restart"
+			}
+		}
+		"Signatures"
+		{
+			"Restart"
+			{
+				"library"	"server"
+				"linux"		"@_ZN9CDirector7RestartEv"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xA1\xD8\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\xA1\x90\x2A\x2A\x2A\x8B\x2A\x2A\x53\x56\x57\x8B"
+				/* Signature for sub_1026E830:
+				 * ? ? ? ? ? ? ? ? ? A1 D8 ? ? ? 33 ? 89 ? ? A1 90 ? ? ? 8B ? ? 53 56 57 8B
+				*/
+			}
+			
+			"RestartScenarioFromVote"
+			{
+				"library"	"server"
+				"linux"		"@_ZN9CDirector23RestartScenarioFromVoteEPKc"
+				"windows"    "\x2A\x2A\x2A\x2A\x2A\x2A\x8B\x0D\x2A\x2A\x2A\x2A\x57\x85\x2A\x74\x2A\x6A" 
+				/* ? ? ? ? ? ? 8B 0D ? ? ? ? 57 85 ? 74 ? 6A */
+			}
+		}
+	}
+    "left4dead"
+    {
+		"Offsets"
+		{
+			"CDirector::m_bMissionLost"
+			{
+				"windows"	"620"
+				"linux"		"616"
+			}
+		}
+		"Signatures"
+		{
+			/* ********************* */
+			/* Signature by Psyk0tik */
+			/* ********************* */
+		
+			/**
+			 * Director::Restart()
+			 *
+			 * How to find on Windows:
+			 * 1. Search for any of the following strings (they can each only be found in this function):
+			 * - "versus_final_score"
+			 * - "zombiescore"
+			 * - "survivorscore"
+			 * - "Reloading original map %s\n"
+			 * - "Staying on original map %s\n"
+			 **/
+			"Restart"
+			{
+				"library"	"server"
+				"linux"		"@_ZN8Director7RestartEv"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x81\xEC\x2A\x2A\x2A\x2A\x53\x55\x56\x33\x2A\x3B"
+						/* ? ? ? ? ? ? ? ? 81 EC ? ? ? ? 53 55 56 33 ? 3B */
+			}
+
+			/**
+			 * Director::RestartScenarioFromVote(char const*)
+			 *
+			 * How to find on Windows:
+			 * 1. Search for the "#L4D_Scenario_Restart" string.
+			 * 2. One of the functions that references that string should be this function.
+			 **/
+			"RestartScenarioFromVote"
+			{
+				"library"	"server"
+				"linux"		"@_ZN8Director23RestartScenarioFromVoteEPKc"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x56\x8B\x2A\x74\x2A\x6A\x2A\x50"
+						/* ? ? ? ? ? ? 56 8B ? 74 ? 6A ? 50 */
+			}
+		}
+	}
+}
