@@ -1,8 +1,0 @@
-Make the mp_restartgame and restart scenario from vote no longer change map to first map of scenario.
-
-1.1
-	- Fixed plugin conflict with left4dhooks while in windows server. Thanks to HarryPotter for reporting.
-	- Fixed wrong detour setting cause crash the windows server. Thanks to Psyk0tik for technical support.
-
-1.0
-	- Initial release
