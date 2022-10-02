@@ -22,7 +22,7 @@ CreateDetourFromConf(Handle h, const char[]s, DHookCallback callback)
 public Plugin:myinfo =
 {
 	name = "IA_witch_fix",
-	author = "IA",
+	author = "IA/NanaNana",
 	description = "Nothing",
 	version = "1.27.2012",
 	url = "https://steamcommunity.com/profiles/76561198291983872"
@@ -42,7 +42,7 @@ public OnPluginStart()
 	HookEvent("bot_player_replace", ReplacePlayer);
 	
 	HookConVarChange(CreateConVar("IA_witch_afk_fix", "1", "Fix the Witch can't get survivor when player has been AFK", _, true, _, true, 1.0), Hook_ConVar);
-	HookConVarChange(CreateConVar("IA_witch_find_other_survivor", "0", "Find another target when the first target is down. 0 = disable; 1 = closet one; 2 = random", _, true, _, true, 2.0), Hook_ConVar);
+	HookConVarChange(CreateConVar("IA_witch_find_other_survivor", "0", "Find another target when the first target is down. 0 = disable; 1 = closest one; 2 = random", _, true, _, true, 2.0), Hook_ConVar);
 	Hook_ConVar(null, "", "")
 }
 
