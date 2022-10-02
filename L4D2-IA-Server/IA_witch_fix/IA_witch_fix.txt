@@ -1,0 +1,55 @@
+﻿"Games"
+{
+	"left4dead2"
+	{
+		"Functions"
+		{
+			"OnGetVictim"
+			{
+				"signature"		"WitchAttack::GetVictim"
+				"callconv"		"thiscall"
+				"return"		"cbaseentity"
+				"this"			"address"
+			}
+			"WitchAttack_IsValidEnemy"
+			{
+				"signature"		"WitchAttack::IsValidEnemy"
+				"callconv"		"cdecl"
+				"return"		"bool"
+				"this"			"ignore"
+				"arguments"
+				{
+					"a1"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+			"Witch_Update"
+			{
+				"signature"		"Witch::Update"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"entity"
+			}
+		}
+		"Signatures"
+		{
+			"WitchAttack::IsValidEnemy"
+			{
+				"library"    "server"
+				"linux"      "@_ZN11WitchAttack12IsValidEnemyEP11CBaseEntity"
+			}
+			"Witch::Update"
+			{
+				"library"    "server"
+				"linux"		"@_ZN5Witch6UpdateEv"
+			}
+			"WitchAttack::GetVictim"
+			{
+				"library"    "server"
+				"linux"		"@_ZNK11WitchAttack9GetVictimEv"
+			}
+		}
+	}
+}
