@@ -1,1 +1,1 @@
-In this section's plugins for Linux Only
+In this section's plugins is for Linux Only
