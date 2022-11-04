@@ -29,7 +29,7 @@ public OnPluginStart()
 	StoreToAddress(pAddress+Address:10, 0x9090, NumberType_Int16)
 	StoreToAddress(pAddress+Address:12, 0x90, NumberType_Int8)
 	
-	ConVar b = FindConVar("IA_50cal_damage")
+	ConVar b = CreateConVar("IA_50cal_damage", "0", "A new convar for control the .50 cal machine gun's damage")
 	HookConVarChange(b, Hook_ConVar);
 	Hook_ConVar(b, "", "")
 }
