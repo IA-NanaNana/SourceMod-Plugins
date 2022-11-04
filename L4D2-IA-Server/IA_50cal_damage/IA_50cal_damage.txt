@@ -1,0 +1,21 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Addresses"
+		{
+			"MountedGunFire"
+			{
+				"signature"		"MountedGunFire"
+			}
+		}
+		"Signatures"
+		{
+			"MountedGunFire"
+			{
+				"library"		"server"
+				"linux"			"@_Z14MountedGunFireP13CTerrorPlayerP15CPropMountedGunRK6VectorS5_S5_fb"
+			}
+		}
+	}
+}
