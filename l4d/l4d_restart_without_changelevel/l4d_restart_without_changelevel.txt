@@ -8,7 +8,7 @@
 			{
 				"signature"		"CRestartGameIssue::ExecuteCommand"
 				"callconv"		"thiscall"
-				"return"		"void"
+				"return"		"int"
 				"this"			"address"
 			}
 		}
@@ -34,20 +34,40 @@
 		}
 		"Offsets"
 		{
-			"CDirector::m_iRestartReason"
+			"CDirector::m_iRoundNumber"
 			{
-				"windows"	"452"
-				"linux"		"452"
+				"windows"	"1061"
+				"linux"		"1061"
+			}
+			"CDirector::m_fRoundEndInterval"
+			{
+				"windows"	"432"
+				"linux"		"432"
 			}
 		}
 		"Signatures"
 		{
+			/* ************************ */
+			/* Signatures by IA-NanaNana */
+			/* ************************ */
 			"CRestartGameIssue::ExecuteCommand"
 			{
 				"library"	"server"
 				"linux"		"@_ZN17CRestartGameIssue14ExecuteCommandEv"
-				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x74\x10\xA1\x78\x81\x83\x10\x8B\x88\x80"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x84\xC0\x74\x10\xA1\x78\x81\x2A\x2A\x8B\x88\x2A\x2A\x2A\x2A\xE9\x2A\x2A\x2A\x2A"
+				/* sub_1034FE90 */
 			}
+			"EndScenario"
+			{
+				"library"	"server"
+				"linux"		"@_ZN9CDirector11EndScenarioE21ScenarioRestartReason"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x10\x89\x2A\x2A\x2A\x2A\x0F\x57\xC0\x83\xEC\x10\x0F\x2F\xC8"
+				/* sub_10269D00 */
+			}
+			
+			/* ********************* */
+			/* Signature by Psyk0tik */
+			/* ********************* */
 			"Restart"
 			{
 				"library"	"server"
@@ -80,25 +100,38 @@
 		}
 		"Offsets"
 		{
-			"CDirector::m_iRestartReason"
+			"CDirector::m_iRoundNumber"
 			{
-				"windows"	"620"
-				"linux"		"616"
+				"windows"	"1790"
+				"linux"		"1786"
+			}
+			"CDirector::m_fRoundEndInterval"
+			{
+				"windows"	"588"
+				"linux"		"584"
 			}
 		}
 		"Signatures"
 		{
+			/* ************************ */
+			/* Signatures by IA-NanaNana */
+			/* ************************ */
 			"CRestartGameIssue::ExecuteCommand"
 			{
 				"library"	"server"
 				"linux"		"@_ZN17CRestartGameIssue14ExecuteCommandEv"
-				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x74\x0B\x8B\x0D\x88\x85\x63\x10\xE9\x2A\x2A\x2A\x2A\xA1"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x84\xC0\x74\x2A\x8B\x0D\x2A\x2A\x2A\x2A\xE9\x2A\x2A\x2A\x2A\xA1"
+			}
+			"EndScenario"
+			{
+				"library"	"server"
+				"linux"		"@_ZN8Director11EndScenarioE21ScenarioRestartReason"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x53\x55\x56\x8B\xF1\xD8\x96\x2A\x2A\x2A\x2A\x57\xDF\xE0\xF6\xC4\x05"
 			}
 		
 			/* ********************* */
 			/* Signature by Psyk0tik */
 			/* ********************* */
-		
 			/**
 			 * Director::Restart()
 			 *
