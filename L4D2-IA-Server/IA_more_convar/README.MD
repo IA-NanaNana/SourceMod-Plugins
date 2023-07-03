@@ -8,37 +8,37 @@ Add more convar
 // Default: "256.0"  
 IA_item_give_distance "256.0"  
 
-// director special spawn delay  
+> // director special spawn delay  
 // -  
 // Default: "20.0"  
 director_special_spawn_delay "20.0"  
 
-// Reset spawn delay when fail to spawn special  
+> // Reset spawn delay when fail to spawn special  
 // -  
 // Default: "5.0"  
 director_special_spawn_delay_fail "5.0"  
 
-// FF damage of easy-hard scale by this  
+> // FF damage of easy-hard scale by this  
 // -  
 // Default: "0.35"  
 survivor_friendly_fire_factor_base "0.35"  
 
-// A damage amount of charger slammed a survivor in expert  
+> // A damage amount of charger slammed a survivor in expert  
 // -  
 // Default: "20.0"  
 z_charger_slammed_dmg_expert "20.0"  
 
-// A damage amount of charger slammed a survivor in hard  
+> // A damage amount of charger slammed a survivor in hard  
 // -  
 // Default: "15.0"  
 z_charger_slammed_dmg_hard "15.0"  
 
-// A damage amount of charger slammed a survivor in normal  
+> // A damage amount of charger slammed a survivor in normal  
 // -  
 // Default: "10.0"  
 z_charger_slammed_dmg_normal "10.0"  
 
-// Charger take damage scale by this when charging  
+> // Charger take damage scale by this when charging  
 // -  
 // Default: "0.333"  
 z_charger_takedamage_scale_charging "0.333"  
