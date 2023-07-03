@@ -58,6 +58,8 @@ public OnPluginStart()
 	
 	CreateConVarPatch(VariantType_Float, "ChargerTakeDamage", "z_charger_takedamage_scale_charging", "0.333", "Charger take damage scale by this when charging")
 	
+	// AutoExecConfig(true, "IA_more_convar")
+	
 	hGameData.Close()
 }
 
@@ -144,7 +146,8 @@ CreateConVarPatch(VariantType vt,
 		 
 		// PrintToServer("PatchType is %i", type)
 		
-		ConVar convar = CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max)
+		ConVar convar = FindConVar(name)
+		if(!convar) convar = CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max)
 		char s[128]
 		convar.GetString(s, sizeof s)
 		Hook_ConVar(convar, "", s)
