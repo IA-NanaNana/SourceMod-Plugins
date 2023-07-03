@@ -2,10 +2,10 @@ Add more convar
 
 
 ### ConVars
-> // How far a survivor can give item to other
-> // -
-> // Default: "256.0"
-> IA_item_give_distance "256.0"
+> // How far a survivor can give item to other 
+> // - 
+> // Default: "256.0" 
+> IA_item_give_distance "256.0" 
 
 > // -
 > // Default: ""
