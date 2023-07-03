@@ -1,0 +1,153 @@
+﻿"Games"
+{
+	"left4dead2"
+	{
+		"MemPatches"
+		{
+			"ItemGiveDistance"
+			{
+				"signature"						"CBaseBeltItem::SecondaryAttack"
+				"linux"
+				{
+					"offset"					"129"
+					"verify"					"\xC7\x44"
+					"patch"						"\xC7\x44\x24\x04\x00\x00\x80\x43"
+				}
+			}
+			"SlammedSurvivorDamageNormal"
+			{
+				"signature"						"CTerrorPlayer::OnSlammedSurvivor"
+				"linux"
+				{
+					"offset"					"592"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x10\x05\xA0\x6F\xBF\x00"
+				}
+			}
+			"SlammedSurvivorDamageHard"
+			{
+				"signature"						"CTerrorPlayer::OnSlammedSurvivor"
+				"linux"
+				{
+					"offset"					"73"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x10\x05\xA0\x6F\xBF\x00"
+				}
+			}
+			"SlammedSurvivorDamageExpert"
+			{
+				"signature"						"CTerrorPlayer::OnSlammedSurvivor"
+				"linux"
+				{
+					"offset"					"89"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x10\x05\xA0\x6F\xBF\x00"
+				}
+			}
+			"FriendlyFireScaleBase"
+			{
+				"signature"						"CTerrorPlayer::GetFriendlyFireScale"
+				"linux"
+				{
+					"offset"					"633"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x10\x05\xA0\x6F\xBF\x00"
+				}
+			}
+			"SpecialsSpawnDelay"
+			{
+				"signature"						"CDirector::UpdateSpecialSpawns"
+				"linux"
+				{
+					"offset"					"1963"
+					"verify"					"\x0F\x2F"
+					"patch"						"\x0F\x2F\x05\x88\x98\xBE\x00"
+				}
+			}
+			"SpecialsSpawnDelay2"
+			{
+				"signature"						"CDirector::UpdateSpecialSpawns"
+				"linux"
+				{
+					"offset"					"2002"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x58\x05\x88\x98\xBE\x00"
+				}
+			}
+			"SpecialsSpawnDelay3"
+			{
+				"signature"						"CDirector::UpdateSpecialSpawns"
+				"linux"
+				{
+					"offset"					"2048"
+					"verify"					"\xC7\x84\x02"
+					"patch"						"\xC7\x84\x02\x0C\xFD\xFF\xFF\x00\x00\xA0\x41"
+				}
+			}
+			"SpecialsSpawnDelayFail"
+			{
+				"signature"						"CDirector::UpdateSpecialSpawns"
+				"linux"
+				{
+					"offset"					"1291"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x58\x05\xB8\x7F\xBF\x00"
+				}
+			}
+			"SpecialsSpawnDelayFail2"
+			{
+				"signature"						"CDirector::UpdateSpecialSpawns"
+				"linux"
+				{
+					"offset"					"1314"
+					"verify"					"\x0F\x2F"
+					"patch"						"\x0F\x2F\x05\xB8\x7F\xBF\x00"
+				}
+			}
+			"SpecialsSpawnDelayFail3"
+			{
+				"signature"						"CDirector::UpdateSpecialSpawns"
+				"linux"
+				{
+					"offset"					"1339"
+					"verify"					"\xC7\x43"
+					"patch"						"\xC7\x43\x04\x00\x00\xA0\x40"
+				}
+			}
+			
+			"ChargerTakeDamage"
+			{
+				"signature"						"CDirector::UpdateSpecialSpawns"
+				"linux"
+				{
+					"offset"					"184"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x10\x05\xFF\xFF\xFF\xFF"
+				}
+			}
+		}
+		"Signatures"
+		{
+			"CBaseBeltItem::SecondaryAttack"
+			{
+				"library"						"server"
+				"linux"							"@_ZN13CBaseBeltItem15SecondaryAttackEv"
+			}
+			"CTerrorPlayer::OnSlammedSurvivor"
+			{
+				"library"						"server"
+				"linux"							"@_ZN13CTerrorPlayer17OnSlammedSurvivorEPS_bb"
+			}
+			"CTerrorPlayer::GetFriendlyFireScale"
+			{
+				"library"						"server"
+				"linux"							"@_ZNK13CTerrorPlayer20GetFriendlyFireScaleERK15CTakeDamageInfo"
+			}
+			"CDirector::UpdateSpecialSpawns"
+			{
+				"library"						"server"
+				"linux"							"@_ZN9CDirector19UpdateSpecialSpawnsEv"
+			}
+		}
+	}
+}
