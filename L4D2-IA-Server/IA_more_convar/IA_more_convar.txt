@@ -1,4 +1,4 @@
-﻿"Games"
+"Games"
 {
 	"left4dead2"
 	{
@@ -60,8 +60,8 @@
 				"linux"
 				{
 					"offset"					"1963"
-					"verify"					"\x0F\x2F"
-					"patch"						"\x0F\x2F\x05\x88\x98\xBE\x00"
+					"verify"					"\xF3\x0F"
+					"patch"						"\xF3\x0F\x58\x05\x88\x98\xBE\x00"
 				}
 			}
 			"SpecialsSpawnDelay2"
@@ -70,8 +70,8 @@
 				"linux"
 				{
 					"offset"					"2002"
-					"verify"					"\xF3\x0F"
-					"patch"						"\xF3\x0F\x58\x05\x88\x98\xBE\x00"
+					"verify"					"\x0F\x2F"
+					"patch"						"\x0F\x2F\x05\x88\x98\xBE\x00"
 				}
 			}
 			"SpecialsSpawnDelay3"
@@ -117,7 +117,7 @@
 			
 			"ChargerTakeDamage"
 			{
-				"signature"						"CDirector::UpdateSpecialSpawns"
+				"signature"						"Charger::OnTakeDamage"
 				"linux"
 				{
 					"offset"					"184"
@@ -147,6 +147,11 @@
 			{
 				"library"						"server"
 				"linux"							"@_ZN9CDirector19UpdateSpecialSpawnsEv"
+			}
+			"Charger::OnTakeDamage"
+			{
+				"library"						"server"
+				"linux"							"@_ZN7Charger12OnTakeDamageERK15CTakeDamageInfo"
 			}
 		}
 	}
