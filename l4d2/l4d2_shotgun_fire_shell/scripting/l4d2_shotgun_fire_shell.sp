@@ -19,7 +19,6 @@ public Plugin myinfo=
 public OnAllPluginsLoaded()
 {
 	GameData h = new GameData("l4d2_shotgun_fire_shell")
-	Handle z
 	
 	/*DHookSetFromConf((z = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_CBaseEntity, ThisPointer_CBaseEntity)), h, SDKConf_Signature, "LaunchGrenade")
 	DHookAddParam(z, HookParamType_CBaseEntity);
