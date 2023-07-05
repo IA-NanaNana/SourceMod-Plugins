@@ -11,10 +11,6 @@
 #define FV_Float	4
 #define FV_String	5
 
-#define FCMD_ADMIN		FCVAR_ARCHIVE
-#define FCMD_SERVER		FCVAR_SERVER_CAN_EXECUTE
-#define FCMD_HOST		FCVAR_USERINFO
-
 #define CLAMP_Min	-1
 #define CLAMP_Max	1
 
@@ -29,6 +25,8 @@
 
 #define DEBUG	PrintToChatAll("?"), PrintToServer("?")
 
+#define MODEL_NAME_SIZE 80
+
 enum ObjectType
 {
 	OT_STATIC,OT_DYNAMIC,OT_PHYSICS,OT_PHYSICS_PROP
@@ -42,13 +40,50 @@ enum BlockType
 	BT_NONE,BT_SURVIVORS,BT_PLSI,BT_ALLSI,BT_ALL
 }
 
-#define Upgrade_FireBullect			(1<<0)
-#define Upgrade_ExplosiveBullect	(1<<1)
-#define Upgrade_LaserSight			(1<<2)
+enum struct Vector
+{
+	float x;
+	float y;
+	float z;
+}
 
-#include <sourcemod>
-#include <sdktools>
-#include <sdkhooks>
+enum struct CTakeDamageInfo
+{
+	Vector			m_vecDamageForce;
+	Vector			m_vecDamagePosition;
+	Vector			m_vecReportedPosition;	// Position players are told damage is coming from
+	Vector			m_vecUnknown;
+	
+	int				m_hInflictor;
+	int				m_hAttacker;
+	int				m_hWeapon;
+	
+	float			m_flDamage;
+	float			m_flMaxDamage;
+	float			m_flBaseDamage;			// The damage amount before skill leve adjustments are made. Used to get uniform damage forces.
+	
+	int				m_bitsDamageType;
+	int				m_iDamageCustom;
+	int				m_iDamageStats;
+	int				m_iAmmoType;			// AmmoType of the weapon used to cause this damage, if any
+	
+	float			m_flRadius;
+}
+
+stock AddFileListToDownloadsTable(const char[]file)
+{
+	File h = OpenFile(file, "r")
+	if(!h) return
+	char s[256]
+	int i
+	while(h.ReadLine(s, 256))
+	{
+		if((i = StrContains(s, ";")) != -1) s[i] = 0
+		TrimString(s)
+		if(s[0]) AddFileToDownloadsTable(s)
+	}
+	h.Close()
+}
 
 /*	------------- MenuItem -------------	*/
 // stock void AddMenuTranslatedItem(Menu menu, const char[] opt, const char[] phrase, int client)
@@ -136,21 +171,29 @@ stock AddMenuItemIntFormat(Handle:menu, i, const String:format[], type, any:x=0,
 stock AM_CommandFlag(const String:cmd[], f, bool b)
 {
 	new i = GetCommandFlags(cmd)
-	if(b) i |=f
-	else i &=~f
-	SetCommandFlags(cmd, i);
+	SetCommandFlags(cmd, b ? i|f : i&~f);
 }
 
-stock ArrayToString(any[]z, c, char[]s, l)
+stock ArrayToString(any[]a, c, char[]s, l)
 {
 	s[0] = 0
-	while(c--) Format(s, l, "%i %s", z[c], s)
-	TrimString(s)
+	for(int i = 0;i<c;i++) FormatEx(s[strlen(s)], l, "%i ", a[i])
+	if(s[0]) s[strlen(s)-1] = 0
 }
 
-stock ArrayAdd(any[] a, const any[] b, c)
+stock ArrayAdd(any[]a, const any[] b, c)
 {
 	while(c--) a[c] += b[c]
+}
+
+stock ArrayClear(any[]a, c)
+{
+	while(c--) a[c] = 0
+}
+
+stock ArrayCopy(any[]a, const any[] b, c)
+{
+	while(c--) a[c] = b[c]
 }
 
 stock any ArraySum(const any[] a, b)
@@ -160,12 +203,12 @@ stock any ArraySum(const any[] a, b)
 	return i
 }
 
-stock BitToString(a, String:s[], l)
+stock BitToString(a, char[]s, l)
 {
 	s[0] = 0
-	for(new i = 1;i<32;i++)
+	for(int i = 0;i<32;i++)
 	{
-		if(a & 1<<i) Format(s, l, "%s%i|", s, i)
+		if(a &(1<<i)) FormatEx(s[strlen(s)], l, "%i|", i)
 	}
 	if(s[0]) s[strlen(s)-1] = 0
 }
@@ -215,40 +258,19 @@ stock CheatCommand(a, const String:cmd[], const String:format[]="", any:...)
 {
 	new i = GetCommandFlags(cmd), String:s[128]
 	VFormat(s, 128, format, 4)
-	SetCommandFlags(cmd, i &~FCVAR_CHEAT&~FCVAR_ARCHIVE);
-	if(a || (a = GetRandomClient())) FakeClientCommand(a, "%s %s", cmd, s);
+	if(i&FCVAR_GAMEDLL) SetCommandFlags(cmd, FCVAR_GAMEDLL);
+	else SetCommandFlags(cmd, 0);
+	if(a/* || (a = GetRandomPlayer())*/) FakeClientCommand(a, "%s %s", cmd, s);
 	else
 	{
-		a = CreateFakeClient("")
+		InsertServerCommand("%s %s", cmd, s);
+		ServerExecute()
+		/*a = CreateFakeClient("")
 		FakeClientCommand(a, "%s %s", cmd, s);
-		KickClientEx(a)
+		KickClientEx(a)*/
 	}
 	SetCommandFlags(cmd, i)
 }
-// cm warp_all_survivors_to_checkpoint
-
-/*stock CheatCommand(a, const String:cmd[], const String:format[]="", any:...)
-{
-	new i = GetCommandFlags(cmd), String:s[128]
-	VFormat(s, 128, format, 4)
-	SetCommandFlags(cmd, i &~FCVAR_CHEAT&~FCVAR_ARCHIVE);
-	if(a)
-	{
-		FakeClientCommand(a, "%s %s", cmd, s);
-		SetCommandFlags(cmd, i)
-	}
-	else
-	{
-		ServerCommand("%s %s", cmd, s);
-		if(i &FCVAR_CHEAT || i &FCVAR_ARCHIVE)
-		{
-			Handle p = CreateDataPack();
-			WritePackString(p, cmd)
-			WritePackCell(p, i)
-			CreateTimer(0.1, ResetCommandCheatFlags, p, TIMER_DATA_HNDL_CLOSE)
-		}
-	}
-}*/
 
 stock any Clamp(any a, any b, any c)
 {
@@ -288,11 +310,55 @@ stock CopyVector(Float:x[3], const Float:y[3])
 	x[1] = y[1]
 	x[2] = y[2]
 }
-stock Handle:CreateConVarEx(const String:name[], const String:defaultValue[], ConVarChanged:callback, const String:description[]="", flags=0, bool hasMin=false, Float:min=0.0, bool hasMax=false, Float:max=0.0)
+stock ConVar CreateConVarEx(const char[] name,
+	const char[] defaultValue,
+	ConVarChanged callback,
+	const char[] description="",
+	int flags=0,
+	bool hasMin=false, float min=0.0,
+	bool hasMax=false, float max=0.0)
 {
 	ConVar cvar = CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max)
-	HookConVarChange(cvar, callback);
+	cvar.AddChangeHook(callback);
 	return cvar
+}
+
+stock Handle CreateSDKCallFromConf(Handle gamedata, SDKFuncConfSource c, const char[]s, SDKCallType a, SDKType f=SDKType:-1, l=0, any:d[]={})
+{
+	StartPrepSDKCall(a);
+	PrepSDKCall_SetFromConf(gamedata, c, s);
+	if(f != SDKType:-1) PrepSDKCall_SetReturnInfo(f, GetSDKTpyePassMethod(f));
+	for(int i=0;i<l;i++)
+	{
+		PrepSDKCall_AddParameter(SDKType:d[i], GetSDKTpyePassMethod(d[i]));
+	}
+	Handle z = EndPrepSDKCall()
+	if(!z) LogError("[IA] %s invalid.", s);
+	return z
+}
+
+stock Handle CreateSDKCallFromSig(SDKLibrary lib, const char[]s, SDKCallType a, SDKType f=SDKType:-1, l=0, any:d[]={})
+{
+	StartPrepSDKCall(a);
+	PrepSDKCall_SetSignature(lib, s, 0);
+	if(f != SDKType:-1) PrepSDKCall_SetReturnInfo(f, GetSDKTpyePassMethod(f));
+	for(int i=0;i<l;i++)
+	{
+		PrepSDKCall_AddParameter(SDKType:d[i], GetSDKTpyePassMethod(d[i]));
+	}
+	Handle z = EndPrepSDKCall()
+	if(!z) LogError("[IA] %s invalid.", s);
+	return z
+}
+
+stock SDKPassMethod GetSDKTpyePassMethod(SDKType a)
+{
+	switch(a)
+	{
+		case SDKType_CBaseEntity,SDKType_CBasePlayer,SDKType_Edict,SDKType_String: return SDKPass_Pointer
+		case SDKType_Vector,SDKType_QAngle: return SDKPass_ByRef
+	}
+	return SDKPass_Plain
 }
 
 stock int CreateBlocker(BlockType:t, const Float:Min[3], const Float:Max[3], const Float:x[3]=NULL_VECTOR, const Float:y[3]=NULL_VECTOR)
@@ -417,22 +483,22 @@ stock FormatValue(String:s[], l, type, const String:format[], any:i=0, const Str
 	}
 }
 
-stock int GetClientCountEx(g=-1, t=FL_TeamAll, l=-1, h=-1, c=0)
-{
-	int b;
-	for (int a = 1; a <= MaxClients; a++)
-	{
-		if(a != c && IsClientAvailable(a, g, 0, l, h) && t&1<<GetClientTeam(a)) b++;
-	}
-	return b;
-}
-
-stock bool GetClientEyeEndPosition(a, float f[3])
+stock int GetClientAimTargetEx(a)
 {
 	float x[3], y[3]
 	GetClientEyePosition(a, x);
 	GetClientEyeAngles(a, y);
-	TR_TraceRayFilter(x, y, MASK_OPAQUE, RayType_Infinite, TR_DontHitTarget, -1);
+	TR_TraceRayFilter(x, y, MASK_ALL, RayType_Infinite, TR_DontHitTarget, a);
+	if(!TR_DidHit()) return 0
+	return TR_GetEntityIndex()
+}
+
+stock bool GetClientAimPosition(a, float f[3])
+{
+	float x[3], y[3]
+	GetClientEyePosition(a, x);
+	GetClientEyeAngles(a, y);
+	TR_TraceRayFilter(x, y, MASK_OPAQUE, RayType_Infinite, TR_DontHitBloody);
 	if(!TR_DidHit()) return false
 	TR_GetEndPosition(f);
 	return true
@@ -448,11 +514,20 @@ stock bool GetClientEyeEndPosition(a, float f[3])
 	return a;
 }*/
 
-stock Float:GetClientHealthBuffer(a)
+stock int GetClosetEntity(a, const char[]s, float d=0.0)
 {
-	float f = GetEntPropFloat(a, Prop_Send, "m_healthBuffer")-((GetGameTime()-GetEntPropFloat(a, Prop_Send, "m_healthBufferTime"))*GS_CvarFloat("pain_pills_decay_rate"))
-	if(f < 0.0) f = 0.0
-	return f
+	int b = -1, i = -1
+	float f[3], F[3], L, l
+	GetEntityOrigin(a, f)
+	while((b = FindEntityByClassname(b, s)) != -1)
+	{
+		GetEntityOrigin(b, F)
+		if((l = GetVectorDistance(f, F)) <= d || d <= 0.0)
+		{
+			if(i == -1 || l <= L) L = l, i = b
+		}
+	}
+	return i
 }
 
 stock int GetEdictsCount()
@@ -471,21 +546,34 @@ stock int GetEntityOfAddress(Address i)
 	return -1
 }
 
-stock GetEntityModel(a, String:s[], b)
+stock GetEntityModel(a, char[]s, b)
 {
-	GetEntPropString(a, PropType:1, "m_ModelName", s, b);
+	/*static m_ModelName = -1
+	if(m_ModelName == -1) m_ModelName = FindDataMapInfo(a, "m_ModelName")
+	GetEntDataString(a, m_ModelName, s, b)
+	PrintToChatAll("%i %s", m_ModelName, s)*/
+	GetEntPropString(a, Prop_Data, "m_ModelName", s, b)
 }
 
-stock GetEntityOrigin(a, Float:f[3])
+stock GetEntityOrigin(a, float f[3], bool b=false)
 {
-	if(FindDataMapInfo(a, "m_vecAbsOrigin") != -1) GetEntPropVector(a, Prop_Data, "m_vecAbsOrigin", f)
+	GetEntPropVector(a, Prop_Data, "m_vecAbsOrigin", f)
+	if(b)
+	{
+		float min[3], max[3]
+		GetEntPropVector(a, Prop_Send, "m_vecMins", min)
+		GetEntPropVector(a, Prop_Send, "m_vecMaxs", max)
+		f[0] += ( min[0] + max[0] ) / 2.0
+		f[1] += ( min[1] + max[1] ) / 2.0
+		f[2] += ( min[2] + max[2] ) / 2.0
+	}
 }
 
 stock GetEntityOriginWithOffset(a, float f[3], float x, float y, float z)
 {
 	new Float:F[3], Float:v[3]
 	GetEntPropVector(a, Prop_Data, "m_vecAbsOrigin", f)
-	GetEntPropVector(a, Prop_Data, "m_angRotation", F)
+	GetEntPropVector(a, Prop_Data, "m_angAbsRotation", F)
 	GetAngleVectors(F, NULL_VECTOR, v, NULL_VECTOR);
 	f[0] += v[0]*x;
 	f[1] += v[1]*x;
@@ -495,28 +583,28 @@ stock GetEntityOriginWithOffset(a, float f[3], float x, float y, float z)
 	f[2] += z
 }
 
-stock GetEntityRotation(a, Float:f[3])
+stock GetEntityRotation(a, float f[3])
 {
-	if(FindDataMapInfo(a, "m_angRotation") != -1) GetEntPropVector(a, Prop_Data, "m_angRotation", f)
+	GetEntPropVector(a, Prop_Data, "m_angAbsRotation", f)
 }
 
 stock float GetEntitySpeed(a)
 {
-	new Float:f[3]
-	GetEntityVelocity(a, f)
+	float f[3]
+	GetEntPropVector(a, Prop_Data, "m_vecAbsVelocity", f)
 	return GetVectorLength(f)
 }
 
 stock GetEntityVector3(a, float f[3], float F[3], float v[3])
 {
 	GetEntPropVector(a, Prop_Data, "m_vecAbsOrigin", f)
-	GetEntPropVector(a, Prop_Data, "m_angRotation", F)
-	GetEntPropVector(a, Prop_Data, "m_vecVelocity", v)
+	GetEntPropVector(a, Prop_Data, "m_angAbsRotation", F)
+	GetEntPropVector(a, Prop_Data, "m_vecAbsVelocity", v)
 }
 
-stock GetEntityVelocity(a, Float:f[3])
+stock GetEntityVelocity(a, float f[3])
 {
-	if(FindDataMapInfo(a, "m_vecVelocity") != -1) GetEntPropVector(a, Prop_Data, "m_vecVelocity", f)
+	GetEntPropVector(a, Prop_Data, "m_vecAbsVelocity", f)
 }
 
 stock float GetGroundZ(Float:f[3], a=0)
@@ -528,9 +616,21 @@ stock float GetGroundZ(Float:f[3], a=0)
 	return x[2]
 }
 
+stock int GetPlayerCount(t=FL_TeamAll, l=-1, h=-1)
+{
+	int b;
+	for (int a = 1; a <= MaxClients; a++)
+	{
+		if(IsValidPlayer(a, -1, l, h) && t&(1<<GetClientTeam(a))) b++;
+	}
+	return b;
+}
+
 stock int GetPlayerWeapon(a)
 {
-	return GetEntPropEnt(a, Prop_Send, "m_hActiveWeapon")
+	static m_hActiveWeapon = -1
+	if(m_hActiveWeapon == -1) m_hActiveWeapon = FindSendPropInfo("CTerrorPlayer", "m_hActiveWeapon")
+	return GetEntDataEnt2(a, m_hActiveWeapon)
 }
 
 stock GetPluginInfoEx(Handle:h, String:s[], l)
@@ -546,6 +646,39 @@ stock GetPluginInfoEx(Handle:h, String:s[], l)
 	Format(s, l, "%s by %s", s, n)
 	GetPluginInfo(h, PlInfo_Description, n, 128);
 	Format(s, l, "%s\n- %s", s, n)
+}
+
+stock Address GetSignatureAddress(const char[]c, const char[]lib="server")
+{
+	char t[32]
+	if(c[0] == '@' || c[0] == '\\')
+	{
+		char file[256]
+		FormatEx(t, 32, "temp_%i.games", GS_CvarInt("IA_server_number"))
+		BuildPath(Path_SM, file, sizeof(file), "gamedata/%s.txt", t);
+		File f = OpenFile(file, "w")
+		f.WriteLine("\"Games\"");
+		f.WriteLine("{");
+		f.WriteLine("\"#default\"");
+		f.WriteLine("{");
+		f.WriteLine("\"Signatures\"");
+		f.WriteLine("{");
+		f.WriteLine("\"%s\"", c);
+		f.WriteLine("{");
+		f.WriteLine("\"library\"	\"%s\"", lib);
+		f.WriteLine("\"linux\"	\"%s\"", c);
+		f.WriteLine("}");
+		f.WriteLine("}");
+		f.WriteLine("}");
+		f.WriteLine("}");
+		CloseHandle(f)
+	}
+	else t = "IA"
+	GameData h = new GameData(t)
+	Address p = h.GetMemSig(c)
+	if(!p) PrintToServer("[IA] Can't find sig \"%s\"", c)
+	CloseHandle(h)
+	return p
 }
 
 stock int GetStringArg(const String:s[], k)
@@ -611,7 +744,7 @@ stock int GetTeamClients(t, l=-1, h=-1, b=0)
 	int a;
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if(i != b && IsClientAvailable(i, 1, t, l, h) && !IsCreateBot(i)) a++;
+		if(i != b && IsValidPlayer(i, t, l, h)) a++;
 	}
 	return a;
 }
@@ -619,11 +752,6 @@ stock int GetTeamClients(t, l=-1, h=-1, b=0)
 stock int GetTickrate()
 {
 	return RoundFloat(1.0/GetTickInterval())
-}
-
-stock int GetWeaponAmmoType(e)
-{
-	return GetEntProp(e, Prop_Send, "m_iPrimaryAmmoType");
 }
 
 stock int GS_WeaponClip(a, b=-1)
@@ -651,11 +779,6 @@ stock int GS_WeaponAmmo(e, s=-1)
 		s = GetEntProp(e, Prop_Send, "m_iExtraPrimaryAmmo")
 	}
 	return s
-}
-
-stock InitialArray(any[]z, l)
-{
-	for(int i=0;i<l;i++) z[i] = 0
 }
 
 stock InsertMenuItemInt(Handle:menu, a, i, const String:s[])
@@ -715,9 +838,9 @@ stock bool IsBoxIntersectingSphere(float a1[3], float a2[3], float a3[3], float 
 	return (a4 * a4) > v5;
 }
 
-stock bool IsClientAvailable(a, g=1,t=0, l=-1, h=-1)
+stock bool IsClientAvailable(a, g=1,t=-1, l=-1, h=-1)
 {
-	return 0 < a <= MaxClients && IsClientConnected(a) && (g == -1 || (!g && !IsClientInGame(a)) || (g == 1 && IsClientInGame(a))) && (!t || GetClientTeam(a) == t) && (l == -1 || (!l && (!IsPlayerAlive(a) || IsPlayerGhost(a))) || (l == 1 && IsPlayerAlive(a) && !IsPlayerGhost(a))) && (h == -1 || (!h && IsFakeClient(a)) || (h == 1 && !IsFakeClient(a)))
+	return 0 < a <= MaxClients && IsClientConnected(a) && (g == -1 || IsClientInGame(a) == bool:g) && (t == -1 || GetClientTeam(a) == t) && (l == -1 || IsPlayerAlive(a) == bool:l) && (h == -1 || !IsFakeClient(a) == bool:h)
 }
 
 stock bool IsFirstMap()
@@ -752,7 +875,12 @@ stock bool IsStringNumeric(const char[]s)
 
 stock bool IsValidEnt(a)
 {
-	return (a > 32 && IsValidEdict(a));
+	return (a > MaxClients && IsValidEdict(a));
+}
+
+stock bool IsValidPlayer(a, t=-1, l=-1, h=-1)
+{
+	return IsClientInGame(a) && (t == -1 || GetClientTeam(a) == t) && (l == -1 || IsPlayerAlive(a) == bool:l) && (h == -1 || !IsFakeClient(a) == bool:h)
 }
 
 stock bool IsVectorZero(float f[3])
@@ -816,17 +944,21 @@ stock KvRemoveKey(KeyValues k, const char[]key)
 }*/
 
 
-stock int LoadStringFromAddress(Address p, char[]s, l)
+stock LoadStringFromAddress(any p, char[]s, l)
 {
-	s[0] = 0
-	int i
-	while(i<l)
+	for(int i=0;i<l;i++)
 	{
-		s[i] = view_as<int>(LoadFromAddress(p+view_as<Address>(i), NumberType_Int8))
-		if(!s[i]) break
-		i++
+		s[i] = LoadFromAddress(view_as<Address>(p+i), NumberType_Int8)
+		if(!s[i]) return
 	}
-	return i
+}
+
+stock LoadArrayFromAddress(any p, any[]f, l)
+{
+	for(int i=0;i<l;i++)
+	{
+		f[i] = LoadFromAddress(view_as<Address>(p+(i*4)), NumberType_Int32)
+	}
 }
 
 stock PerformFade(client, bool type, duration, const color[4])
@@ -847,17 +979,29 @@ stock PerformFade(client, bool type, duration, const color[4])
 stock bool PlayGameSound(int a, const char[] gameSound, int e = -2, int flags = 0, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	new channel, level, Float:volume, pitch
-	static char sample[128]
-	if(!GetGameSoundParams(gameSound, channel, level, volume, pitch, sample, 128, e)) return false
-	int z[33], l
+	static char sample[80]
+	if(!GetGameSoundParams(gameSound, channel, level, volume, pitch, sample, 80, e)) return false
+	int z[MAXPLAYERS+1], l
 	if(a > 0) z[l++] = a, e = (e == -2)?a:e
-	else for(a = 1;a<33;a++)
+	else for(a = 1;a<=MaxClients;a++)
 	{
 		if(IsClientInGame(a)) z[l++] = a
 	}
 	PrecacheSound(sample);
 	EmitSound(z, l, sample, e, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 	return true;
+}
+
+stock PlaySound(int a, const char[] Sound, int e = -2, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = 0, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+{
+	int z[MAXPLAYERS+1], l
+	if(a > 0) z[l++] = a, e = (e == -2)?a:e
+	else for(a = 1;a<=MaxClients;a++)
+	{
+		if(IsClientInGame(a)) z[l++] = a
+	}
+	PrecacheSound(Sound);
+	EmitSound(z, l, Sound, e, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
 
 stock PrecacheMelee(const char[] sMeleeName)
@@ -940,9 +1084,8 @@ stock PrintToChatAllEx(b=FL_TeamAll, bool sound, const String:f[], any:...)
 
 stock PrintToChatEx(a, bool sound, const String:f[], any:...)
 {
-	Handle h
-	if(a) h = StartMessageOne("SayText2", a), SetGlobalTransTarget(a)
-	else h = StartMessageAll("SayText2")
+	Handle h = StartMessageOne("SayText2", a)
+	SetGlobalTransTarget(a)
 	char s[254]
 	VFormat(s, sizeof(s), f, 4)
 	int i = StrColor(s)
@@ -965,6 +1108,28 @@ stock PrintToChatEx(a, bool sound, const String:f[], any:...)
 	}
 	EndMessage();
 	
+}
+
+stock PrintToChatNoFormat(a, const String:s[])
+{
+	Handle h = StartMessageOne("SayText2", a)
+	if(GetUserMessageType() == UM_BitBuf)
+	{
+		BfWriteByte(h, 0)
+		BfWriteByte(h, false)
+		BfWriteString(h, s); //Message
+	}
+	else
+	{
+		PbSetInt(h, "ent_idx", 0)
+		PbSetBool(h, "chat", false)
+		PbSetString(h, "msg_name", s)
+		PbAddString(h, "params", "")
+		PbAddString(h, "params", "")
+		PbAddString(h, "params", "")
+		PbAddString(h, "params", "")
+	}
+	EndMessage();
 }
 /*stock PrintToChatTeam(a, bool sound, const String:f[], any:...)
 {
@@ -1019,14 +1184,14 @@ stock RemoveEntityByClassname(const String:n[])
 		{
 			GetEdictClassname(a, s, 64)
 			GetEntityNetClass(a, t, 64)
-			if(StrEqual(n, s, false) || StrEqual(n, t, false)) AcceptEntityInput(a, "Kill");
+			if(!strcmp(n, s, false) || !strcmp(n, t, false)) AcceptEntityInput(a, "Kill");
 		}
 	}
 }
 stock RemovePlayerAllWeapon(a)
 {
 	new e;
-	for(new l=0;l<5;l++)
+	for(new l=0;l<6;l++)
 	{
 		if((e = GetPlayerWeaponSlot(a, l)) > 0) RemovePlayerItemEx(a, e)
 	}
@@ -1035,6 +1200,11 @@ stock RemovePlayerItemEx(a, e)
 {
 	RemovePlayerItem(a, e)
 	RemoveEntity(e)
+}
+stock RemovePlayerWeaponSlot(a, l)
+{
+	int e = GetPlayerWeaponSlot(a, l)
+	if(e != -1) RemovePlayerItemEx(a, e)
 }
 
 stock ResetConVarEx(const String:s[], any:...)
@@ -1122,12 +1292,6 @@ stock RunScriptFile(const String:code[], any:...)
 	// }*/
 // }
 
-stock SetClientHealthBuffer(a, float f)
-{
-	SetEntPropFloat(a, Prop_Send, "m_healthBuffer", f)
-	SetEntPropFloat(a, Prop_Send, "m_healthBufferTime", GetGameTime())
-}
-
 stock SetClientLookAt(a, float F[3])
 {
 	float f[3], v[3]
@@ -1153,7 +1317,7 @@ stock bool SetEntityModelEx(e, const String:s[])
 	return true
 }
 
-stock SetGlow(a, t, R, r, c, f)
+stock SetGlow(a, t, r, R, c, f)
 {
 	SetEntProp(a, Prop_Send, "m_Glow", t);
 	SetEntProp(a, Prop_Send, "m_Glow", R, 4, 1);
@@ -1165,94 +1329,98 @@ stock SetGlow(a, t, R, r, c, f)
 stock SetScriptValueInt(const String:t[], int i)
 {
 	RunScriptCode("DirectorScript.MapScript.LocalScript.DirectorOptions.%s <- %i", t, i)
+	// CheatCommand(0, "DirectorScript.MapScript.LocalScript.DirectorOptions.%s <- %i", t, i)
 }
 
-stock SortArray(int[]ar, size, int[]z)
+stock SortArray(int[]ar, size, const int[]z)
 {
-	Handle hndl = CreateDataPack()
+	/*Handle hndl = CreateDataPack()
 	WritePackCell(hndl, size)
 	for(int i=0;i<size;i++)
 	{
 		ar[i]=i
 		WritePackCell(hndl, z[i])
 	}
-	SortCustom1D(ar, size, SortArrayFunc, hndl);
-	CloseHandle(hndl)
-	/*new y[size], l, bool filter[size]
-	for(new i=0;i<size;i++) y[i] = z[i]
-	SortIntegers(y, size, order);
-	for(new i=0;i<size;i++)
+	SortCustom1D(ar, size, SortArrayAsc, hndl);
+	CloseHandle(hndl)*/
+	
+	ArrayList a = new ArrayList()
+	for(int i=0;i<size;i++)
 	{
-		for(new j=0;j<size;j++)
-		{
-			if(!filter[j] && z[j]==y[i])
-			{
-				ar[l++] = j
-				filter[j] = true
-				break
-			}
-		}
-	}*/
+		ar[i]=i
+		a.Push(z[i])
+	}
+	SortCustom1D(ar, size, SortArrayAsc, a);
+	a.Close()
 }
 
-stock StoreStringToAddress(Address p, const char[]s)
+stock StoreStringToAddress(any p, const char[]s)
 {
 	int i
-	do
-	{
-		StoreToAddress(p+view_as<Address>(i++), s[i], NumberType_Int8)
-	} while(s[i])
+	do StoreToAddress(Address:(p+i), s[i], NumberType_Int8)
+	while(s[i++])
 }
 
-stock StrAdd(char[] buffer, int maxlength, const char[] source)
+stock StrAdd(char[] buffer, int maxlength, const char[] s)
 {
-	return strcopy(buffer[strlen(buffer)], maxlength, source);
+	int i = strlen(buffer);
+	if (i < maxlength) strcopy(buffer[i], maxlength-i, s);
 }
 
 stock int StrColor(String:s[])
 {
 	new String:c[10], String:t[24], i, l = strlen(s)+4, a, j
 	bool k
-	if((j = StrContains(s, "{team:")) >= 0 && StrContains(s, "}") > j+1)
+	if((j = StrContains(s, "{team:")+1) && StrContains(s[j], "}") != -1)
 	{
-		i = StringToInt(s[j+6])
-		strcopy(t, 24, s[j])
+		i = StringToInt(s[j+5])
+		strcopy(t, 24, s[j-1])
 		t[StrContains(t, "}")+1] = 0
-		if(!IsClientAvailable(i)) i = 0
+		if(0 < i <= MaxClients && !IsClientInGame(i)) i = 0
 		ReplaceString(s, l, t, i?"\x03":"\x01")
 		k = true
 	}
-	else if((j = StrContains(s, "{clr:")) >= 0 && StrContains(s, "}") > j+1)
+	else if((j = StrContains(s, "{clr:")+1) && StrContains(s[j], "}") != -1)
 	{
-		strcopy(t, 24, s[j])
-		strcopy(c, 10, s[j+5])
+		strcopy(c, 10, s[j+4])
+		strcopy(t, 24, s[j-1])
 		t[StrContains(t, "}")+1] = c[StrContains(c, "}")] = 0
-		if(StrEqual(c, "red", false)) i = GetAnyClientByTeam(3)
-		else if(StrEqual(c, "blue", false)) i = GetAnyClientByTeam(2)
-		else if(StrEqual(c, "white", false)) i = GetAnyClientByTeam(1)
+		if(!strcmp(c, "red", false)) i = GetAnyClientByTeam(3)
+		else if(!strcmp(c, "blue", false)) i = GetAnyClientByTeam(2)
+		else if(!strcmp(c, "white", false)) i = GetAnyClientByTeam(1)
 	}
 	ReplaceString(s, l, "{clr:red}", !k && i?"\x03":"\x04")
 	ReplaceString(s, l, "{clr:blue}", !k && i?"\x03":"\x05")
 	ReplaceString(s, l, "{clr:white}", !k && i?"\x03":"\x01")
 	
-	ReplaceString(s, l, "{clr:1}", "\x01")
-	ReplaceString(s, l, "{clr:3}", "\x03")
-	ReplaceString(s, l, "{clr:4}", "\x04")
-	ReplaceString(s, l, "{clr:5}", "\x05")
+	ReplaceString(s, l, "{clr:1}", "\x01", false)
+	ReplaceString(s, l, "{clr:3}", "\x03", false)
+	ReplaceString(s, l, "{clr:4}", "\x04", false)
+	ReplaceString(s, l, "{clr:5}", "\x05", false)
 	/*for(j=1;j<=5;j++)
 	{
 		FormatEx(t, 24, "{clr:%i}", j)
 		FormatEx(c, 10, "\\x0%i", j==3 && i?1:j)
 		ReplaceString(s, l, t, c)
 	}*/
-	while((j = StrContains(s, "{admin:")) >= 0 && StrContains(s, "}") > j+1)
+	while((j = StrContains(s, "{admin:")+1) && StrContains(s[j], "}") != -1)
 	{
-		a = StringToInt(s[j+7])
-		strcopy(t, 24, s[j])
+		a = StringToInt(s[j+6])
+		strcopy(t, 24, s[j-1])
 		t[StrContains(t, "}")+1] = 0
-		ReplaceString(s, l, t, IsClientAvailable(a) && IsAdmin(a)?"\x03":"\x04")
+		ReplaceString(s, l, t, 0 < a <= MaxClients && IsClientConnected(a) && IsAdmin(a)?"\x03":"\x04")
 	}
 	return i
+}
+
+stock StrFormat(char[] buffer, int maxlength, const char[] format, any:...)
+{
+	int i = strlen(buffer);
+	if (i >= maxlength) return
+	maxlength -= i
+	new String:s[maxlength]
+	VFormat(s, maxlength, format, 4)
+	strcopy(buffer[i], maxlength, s);
 }
 
 /*stock int StrColor(String:s[])
@@ -1271,9 +1439,9 @@ stock int StrColor(String:s[])
 		t[StrContains(t, "}")+1] = 0
 		if(!IsClientAvailable(i)) i = 0
 	}
-	if(StrEqual(c, "red", false)) i = GetAnyClientByTeam(3)
-	else if(StrEqual(c, "blue", false)) i = GetAnyClientByTeam(2)
-	else if(StrEqual(c, "white", false)) i = GetAnyClientByTeam(1)
+	if(!strcmp(c, "red", false)) i = GetAnyClientByTeam(3)
+	else if(!strcmp(c, "blue", false)) i = GetAnyClientByTeam(2)
+	else if(!strcmp(c, "white", false)) i = GetAnyClientByTeam(1)
 	if(t[0]) ReplaceString(s, l, t, i?"\x03":"\x01")
 	while((j = StrContains(s, "{admin:")) >= 0 && StrContains(s, "}") > j+1)
 	{
@@ -1316,6 +1484,25 @@ stock StringIntOperate(const char[]a, const char[]b, char[]s, l, int c)
 		d++
 	}
 	TrimString(s)
+}
+
+stock bool StringMap_GetKeyByString(StringMap a, const char[]b, char[]c, d)
+{
+	StringMapSnapshot e = a.Snapshot()
+	char s[128], t[128]
+	for(int i=e.Length-1;i>=0;i--)
+	{
+		e.GetKey(i, t, 128);
+		a.GetString(t, s, 128)
+		if(!strcmp(s, b))
+		{
+			strcopy(c, d, t)
+			delete e
+			return true
+		}
+	}
+	delete e
+	return false
 }
 
 stock StringToArray(const String:s[], any:z[], l)
@@ -1364,7 +1551,7 @@ stock TakeDamage2(a, b, c, float d, t=0)
 	
 	AcceptEntityInput(e, "Enable");
 }*/
-stock TE_SendBox(float vMins[3], float vMaxs[3])
+stock TE_SendBox(float vMins[3], float vMaxs[3], float time, float size, int colors[4]={ 255, 255, 255, 255 }, int client=0)
 {
 	float vPos1[3], vPos2[3], vPos3[3], vPos4[3], vPos5[3], vPos6[3];
 	vPos1 = vMaxs;
@@ -1379,24 +1566,25 @@ stock TE_SendBox(float vMins[3], float vMaxs[3])
 	vPos5[1] = vMaxs[1];
 	vPos6 = vMins;
 	vPos6[2] = vMaxs[2];
-	TE_SendBeam(vMaxs, vPos1);
-	TE_SendBeam(vMaxs, vPos2);
-	TE_SendBeam(vMaxs, vPos3);
-	TE_SendBeam(vPos6, vPos1);
-	TE_SendBeam(vPos6, vPos2);
-	TE_SendBeam(vPos6, vMins);
-	TE_SendBeam(vPos4, vMins);
-	TE_SendBeam(vPos5, vMins);
-	TE_SendBeam(vPos5, vPos1);
-	TE_SendBeam(vPos5, vPos3);
-	TE_SendBeam(vPos4, vPos3);
-	TE_SendBeam(vPos4, vPos2);
+	TE_SendBeam(vMaxs, vPos1, time, size, colors, client);
+	TE_SendBeam(vMaxs, vPos2, time, size, colors, client);
+	TE_SendBeam(vMaxs, vPos3, time, size, colors, client);
+	TE_SendBeam(vPos6, vPos1, time, size, colors, client);
+	TE_SendBeam(vPos6, vPos2, time, size, colors, client);
+	TE_SendBeam(vPos6, vMins, time, size, colors, client);
+	TE_SendBeam(vPos4, vMins, time, size, colors, client);
+	TE_SendBeam(vPos5, vMins, time, size, colors, client);
+	TE_SendBeam(vPos5, vPos1, time, size, colors, client);
+	TE_SendBeam(vPos5, vPos3, time, size, colors, client);
+	TE_SendBeam(vPos4, vPos3, time, size, colors, client);
+	TE_SendBeam(vPos4, vPos2, time, size, colors, client);
 }
 
-stock TE_SendBeam(const float vMins[3], const float vMaxs[3])
+stock TE_SendBeam(const float vMins[3], const float vMaxs[3], float time, float size, int colors[4]={ 255, 255, 255, 255 }, int client=0)
 {
-	TE_SetupBeamPoints(vMins, vMaxs, PrecacheModel("materials/sprites/laserbeam.vmt"), 0, 0, 0, 60.0, 5.0, 5.0, 1, 0.0, { 255, 255, 255, 255 }, 0);
-	TE_SendToAll();
+	TE_SetupBeamPoints(vMins, vMaxs, PrecacheModel("materials/sprites/laserbeam.vmt"), 0, 0, 0, time, size, size, 1, 0.0, colors, 0);
+	if(client) TE_SendToClient(client)
+	else TE_SendToAll();
 }
 
 stock TeleportDeadPlayers(const Float:x[3]=NULL_VECTOR, const Float:y[3]=NULL_VECTOR, const Float:z[3]=NULL_VECTOR)
@@ -1430,8 +1618,8 @@ stock TeleportEntityToEntity(e, a)
 {
 	float x[3], y[3], z[3]
 	GetEntPropVector(a, Prop_Data, "m_vecAbsOrigin", x)
-	GetEntPropVector(a, Prop_Data, "m_angRotation", y)
-	GetEntPropVector(a, Prop_Data, "m_vecVelocity", z)
+	GetEntPropVector(a, Prop_Data, "m_angAbsRotation", y)
+	GetEntPropVector(a, Prop_Data, "m_vecAbsVelocity", z)
 	TeleportEntity(e, x, y, z);
 }
 
@@ -1503,11 +1691,11 @@ stock TrimComments(String:f[])
 stock int FindClientByName(const String:s[], bool b=false)
 {
 	char t[32];
-	for(new i = 1; i < 33;i++)
+	for(new i = 1; i <=MaxClients;i++)
 	{
 		if(!IsClientConnected(i)) continue;
 		GetClientName(i, t, 32);
-		if(StrEqual(t, s, false) || (b && StrContains(t, s, false) >= 0)) return i;
+		if(!strcmp(t, s, false) || (b && StrContains(t, s, false) >= 0)) return i;
 	}
 	return 0;
 }
@@ -1515,12 +1703,13 @@ stock int FindClientByName(const String:s[], bool b=false)
 stock int FindClientBySteamID(AuthIdType a, const String:s[])
 {
 	char t[32];
-	int i
-	for(i = 1; i <=MaxClients;i++)
+	for(int i = 1; i <=MaxClients;i++)
 	{
-		if(!IsClientAuthorized(i) || IsFakeClient(i)) continue;
-		GetClientAuthId(i, a, t, 32);
-		if(!strcmp(t, s)) return i;
+		if(IsClientAuthorized(i) && !IsFakeClient(i))
+		{
+			GetClientAuthId(i, a, t, 32);
+			if(!strcmp(t, s)) return i;
+		}
 	}
 	return 0;
 }
@@ -1558,114 +1747,16 @@ stock int SearchTarget(const String:s[])
 	if(s[0] == '#') return GetClientOfUserId(StringToInt(s[1]))
 	if(s[0] == '@') return FindClientByName(s[1])
 	new a = StringToInt(s);
-	if(a > 0 && IsValidEdict(a)) return a
+	if(a > 0 && IsValidEntity(a)) return a
 	return 0
 }
 stock int GetAnyClientByTeam(i)
 {
-	for(new a=1;a<33;a++)
+	for(new a=1;a<=MaxClients;a++)
 	{
 		if(IsClientInTeam(a, i)) return a
 	}
 	return 0
-}
-stock int GetArrayMaxOrMinValue(any:a[], l, bool b)
-{
-	new max = a[0], min = a[0]
-	for(new i = 0;i < l;i++)
-	{
-		if(a[i] > max) max = a[i]
-		if(a[i] < min) min = a[i]
-	}
-	return (b) ? max:min
-}
-
-/*
-* @param	b	true for single only
-*/
-stock int GetArrayMaxArray(any:a[], l, bool b=false, ignore=0, s=0)
-{
-	int i, max, ar = -1
-	for(i = s;i < l;i++)
-	{
-		if(ignore & 1<<i) continue;
-		if(a[i] > max) max = a[i], ar = i
-	}
-	if(b && ar != -1)
-	{
-		for(i = s;i < l;i++)
-		{
-			if(!(ignore & 1<<i) && a[i] == max && ar != i) return -1
-		}
-	}
-	return ar;
-}
-
-/*stock int GetArrayMaxArray(any:a[], l, &ar, ignore=0, s=0, &arb=0)
-{
-	new max, b, i
-	for(i = s;i < l;i++)
-	{
-		if(ignore & 1<<i) continue;
-		max = a[i]
-		ar = i
-		for(i = ar;i < l;i++)
-		{
-			if(ignore & 1<<i) continue;
-			if(a[i] > max)
-			{
-				max = a[i]
-				ar = i
-				arb = 0
-				b = 0
-			}
-			if(a[i] == max)
-			{
-				b++
-				arb |= 1<<i
-			}
-		}
-		break
-	}
-	return b;
-}*/
-
-stock int GetArrayMinArray(any:a[], l, ignore=0, s=0)
-{
-	new min, i, ar = -1
-	for(i = s;i < l;i++)
-	{
-		if(ignore & 1<<i) continue;
-		min = a[i]
-		ar = i
-		for(i = ar;i < l;i++)
-		{
-			if(ignore & 1<<i) continue;
-			if(a[i] < min) min = a[i], ar = i
-		}
-		break
-	}
-	return ar;
-}
-
-stock int GetArrayValueBits(any:a[], l, any:z, ignore=0, s=0)
-{
-	new b
-	for(new i = s;i < l;i++)
-	{
-		if(!(ignore & 1<<i) && a[i] == z) b |= 1<<i
-	}
-	return b
-}
-
-stock int GetArrayValueNums(any:a[], l, any:z, ignore=0, s=0)
-{
-	new b
-	for(new i = s;i < l;i++)
-	{
-		if(!(ignore & 1<<i) && a[i] == z) b++
-	}
-	return b
 }
 
 /*stock int GetMaxOrMinArray(any:a[], l, bool t, n=-1, o=false)
@@ -1704,7 +1795,7 @@ stock int GetBarString(float f, float F, j, String:s[], l, c='|')
 	return z
 }
 
-stock int GetClientNums(bool human)
+/*stock int GetClientNums(bool human)
 {
 	new a;
 	for(new i = 1;i<=MaxClients;i++)
@@ -1716,12 +1807,12 @@ stock int GetClientNums(bool human)
 		}
 	}
 	return a
-}
+}*/
 
-stock int GetRandomClient(team=0, alive=-1, human=-1, filter=0)
+stock int GetRandomPlayer(team=-1, alive=-1, human=-1, filter=0)
 {
-	new l[32], L
-	for(new i = 1;i<=MaxClients;i++)
+	int l[32], L, i
+	for(i = 1;i<=MaxClients;i++)
 	{
 		if(i != filter && IsClientAvailable(i, 1, team, alive, human)) l[L++]=i
 	}
@@ -1778,16 +1869,18 @@ stock GS_CvarString(const String:s[], const String:t[]="/null", String:n[]="", l
 {
 	ConVar cvar = FindConVar(s)
 	if(!cvar) return
-	if(!StrEqual(t, "/null")) SetConVarString(cvar, t)
+	if(strcmp(t, "/null")) SetConVarString(cvar, t)
 	GetConVarString(cvar, n, l)
 }
 
 stock int GS_EntityHealth(a, b=-1)
 {
-	if(b > -1) SetEntProp(a, Prop_Data, "m_iHealth", b);
-	new i = GetEntProp(a, Prop_Data, "m_iHealth");
-	if(i < 0 || GetEntProp(a, Prop_Data, "m_lifeState")) i = 0
-	return i
+	static m_iHealth = -1
+	if(m_iHealth == -1) m_iHealth = FindDataMapInfo(a, "m_iHealth")
+	if(b >= 0) SetEntData(a, m_iHealth, b);
+	return GetEntData(a, m_iHealth);
+	// if(i < 0 || GetEntProp(a, Prop_Data, "m_lifeState")) i = 0
+	// return i
 }
 
 stock int GS_EntityMaxHealth(a, b=-1)
@@ -1850,27 +1943,6 @@ stock int GS_TimeOfDay(b=-1)
 	return 0
 }*/
 
-stock Float:GS_WeaponNextAttackTime(a, float b=-1.0)
-{
-	/*for(int i=6132;i<=6140;i+=4)
-	{
-		if(GetEntDataFloat(a, i))
-		{
-			if(b >= 0.0) SetEntDataFloat(a, i, b), ChangeEdictState(a, i);
-			return GetEntDataFloat(a, i)
-		}
-	}*/
-	if(b >= 0.0) SetEntPropFloat(a, Prop_Send, "m_flNextPrimaryAttack", b)
-	return GetEntPropFloat(a, Prop_Send, "m_flNextPrimaryAttack")
-}
-
-stock bool HasLeftStartArea()
-{
-	new a = FindEntityByClassname(-1, "terror_player_manager")
-	if(a > 0 && GetEntProp(a, Prop_Send, "m_hasAnySurvivorLeftSafeArea")) return true
-	return false
-}
-
 stock bool KvReadString(const String:f[], const String:sec[], const String:key[], String:s[], l)
 {
 	KeyValues h = CreateKeyValues("IA")
@@ -1879,7 +1951,7 @@ stock bool KvReadString(const String:f[], const String:sec[], const String:key[]
 	if(h.JumpToKey(sec))
 	{
 		h.GetString(key, t, l, "null")
-		if(!StrEqual(t, "null"))
+		if(strcmp(t, "null"))
 		{
 			strcopy(s, l, t)
 			k = true
@@ -1918,7 +1990,7 @@ stock int SpawnRagdoll(int a, const String:s[])
 	return 0
 }
 
-stock bool SpawnSI(const String:s[], a=0, bool b=true,const Float:x[3]=NULL_VECTOR)
+/*stock bool SpawnSI(const String:s[], a=0, bool b=true,const Float:x[3]=NULL_VECTOR)
 {
 	//if(!StrContains(s, "witch", false)) CheatCommand(a, "z_spawn_old", "%s%s", s, a?"":" auto")
 	if(!StrContains(s, "witch", false))
@@ -1947,16 +2019,15 @@ stock bool SpawnSI(const String:s[], a=0, bool b=true,const Float:x[3]=NULL_VECT
 		KickClient(e)
 	}
 	return true
-}
+}*/
 
 stock int StringToBit(const String:s[])
 {
-	new i, j;
-	if(47 < s[0] < 58) i |= 1<<StringToInt(s)
-	while(s[j] != '\0')
+	int i, j;
+	if(47 < s[0] < 58) i |= (1<<StringToInt(s))
+	while(s[j])
 	{
-		if(s[j] == '|') i |= 1<<StringToInt(s[j+1])
-		j++;
+		if(s[j++] == '|' && 47 < s[j] < 58) i |= (1<<StringToInt(s[j]))
 	}
 	return i
 }
@@ -1996,7 +2067,7 @@ stock bool IsCreateBot(a)
 	{
 		new String:n[14]
 		GetEntityNetClass(a, n, 14)
-		return StrEqual(n, "CTerrorPlayer")
+		return !strcmp(n, "CTerrorPlayer")
 	}
 	return false
 }
@@ -2005,21 +2076,22 @@ stock bool IsCSGO()
 {
 	char s[32]
 	GetGameFolderName(s, 32)
-	return StrEqual(s, "csgo")
+	return !strcmp(s, "csgo")
 }
 
 stock bool IsEntVisibleTo(a, b)
 {
 	new Float:f[3], Float:p[3]
-	if(a < 33) GetClientEyePosition(a, f)
-	else GetEntityOrigin(a, f)
-	if(b < 33) GetClientEyePosition(b, p)
-	else GetEntityOrigin(b, p)
-	DataPack c = new DataPack()
+	if(a <= MaxClients) GetClientEyePosition(a, f)
+	else GetEntityOrigin(a, f, true)
+	if(b <= MaxClients) GetClientEyePosition(b, p)
+	else GetEntityOrigin(b, p, true)
+	/*DataPack c = new DataPack()
 	c.WriteCell(a)
 	c.WriteCell(b)
 	TR_TraceRayFilter(f, p, MASK_SOLID, RayType_EndPoint, TR_DontHitBloodly, c);
-	CloseHandle(c)
+	CloseHandle(c)*/
+	TR_TraceRayFilter(f, p, MASK_SOLID, RayType_EndPoint, TR_DontHitBloody);
 	if(TR_DidHit() && TR_GetEntityIndex() == b) return true
 	return false
 }
@@ -2028,7 +2100,7 @@ stock bool IsFakePlayer(a)
 {
 	new String:s[40]
 	GetEntityNetClass(a, s, 40)
-	return (IsFakeClient(a) && StrEqual(s, "CTerrorPlayer"))
+	return (IsFakeClient(a) && !strcmp(s, "CTerrorPlayer"))
 }
 
 stock bool IsFakeClientEx(a)
@@ -2045,7 +2117,7 @@ stock bool IsL4D2()
 {
 	char s[32]
 	GetGameFolderName(s, 32)
-	return StrEqual(s, "left4dead2")
+	return !strcmp(s, "left4dead2")
 }
 
 stock bool IsPlayerCanMove(a)
@@ -2061,11 +2133,6 @@ stock bool IsPlayerCanReachPoint(a, const Float:f[3])
 	return !TR_DidHit()
 }
 
-stock bool IsPlayerGhost(a)
-{
-	return (GetEntProp(a, Prop_Send, "m_isGhost") != 0)
-}
-
 stock bool IsValidVector(const Float:f[3])
 {
 	return (f[0] != 0.0 || f[1] != 0.0 || f[2] != 0.0)
@@ -2075,7 +2142,7 @@ stock bool IsValidInfected(a)
 	if(!IsValidEnt(a)) return false
 	new String:s[64]
 	GetEdictClassname(a, s, 64)
-	return (StrEqual(s, "infected"))
+	return (!strcmp(s, "infected"))
 }
 stock bool IsValidModel(const String:s[])
 {
@@ -2353,30 +2420,9 @@ stock bool IsAdmin(a)
 	return (GetUserFlagBits(a) > 0)
 }
 
-stock bool IsGasCan(e, bool b=true)
-{
-	static char m[40], s[64]
-	GetEdictClassname(e, m, 40)
-	GetEntityModel(e, s, 64)
-	return (StrEqual(m[5], "physics") || StrEqual(m[7], "gascan")) && StrEqual(s, "models/props_junk/gascan001a.mdl") && (!GetEntProp(e, Prop_Data, "m_nSkin") || b)
-}
-
-stock bool IsExplosive(e)
-{
-	static char m[40], s[64]
-	GetEdictClassname(e, m, 40)
-	GetEntityModel(e, s, 64)
-	return StrEqual(m[5], "physics") && (StrContains(s, "propanecanister") > 0 || StrContains(s, "oxygentank") > 0 || StrContains(s, "explosive_box") > 0)
-}
-
-stock bool IsIncap(a)
-{
-	return GetEntProp(a, Prop_Send, "m_isIncapacitated") != 0
-}
-
 stock bool IsValidString(const String:s[])
 {
-	return (!StrEqual(s, "_") && s[0] != 0)
+	return s[0] && strcmp(s, "_")
 }
 
 stock bool StringToBool(const String:s[])
@@ -2390,28 +2436,8 @@ stock Float:GetEntityDistance(a, b)
 	GetEntPropVector(b, Prop_Data, "m_vecAbsOrigin", F);
 	return GetVectorDistance(f, F)
 }
-stock Float:GetFriendlyFireFactor()
-{
-	char s[64]
-	GetConVarString(FindConVar("z_difficulty"), s, 64)
-	if(StrEqual(s, "Impossible", false)) s = "expert"
-	Format(s, 64, "survivor_friendly_fire_factor_%s", s)
-	return GetConVarFloat(FindConVar(s))
-}
+
 // Extra Functag
-stock Action:EmitBurstSound(Handle:h, e)
-{
-	EmitGameSoundToAll("c2m5.fireworks_burst", e)
-}
-
-stock Action:ResetCommandCheatFlags(Handle:h, Handle:p)
-{
-	ResetPack(p)
-	new String:cmd[256]
-	ReadPackString(p, cmd, 256)
-	SetCommandFlags(cmd, ReadPackCell(p));
-}
-
 stock bool TR_DontHitTarget(entity, mask, a)
 {
 	if(entity > 0 && (entity == a || a == -1)) // Check if the TraceRay hit the client.
@@ -2421,7 +2447,7 @@ stock bool TR_DontHitTarget(entity, mask, a)
 	return true; // It didn't hit client
 }
 
-stock bool TR_DontHitBloodly(e, mask, DataPack p)
+/*stock bool TR_DontHitBloodly(e, mask, DataPack p)
 {
 	if(e > 0)
 	{
@@ -2431,6 +2457,15 @@ stock bool TR_DontHitBloodly(e, mask, DataPack p)
 		int b = p.ReadCell()
 		if(e == b) return true
 		if(FindDataMapInfo(e, "m_bloodColor") != -1 && (a > 32 || GetClientTeam(a) != b)) return false
+	}
+	return true
+}*/
+
+stock bool TR_DontHitBloody(e, mask, a)
+{
+	if(e > 0)
+	{
+		if(e == a || FindDataMapInfo(e, "m_bloodColor") != -1) return false
 	}
 	return true
 }
@@ -2443,50 +2478,118 @@ stock bool TR_DontHitPlayer(entity, mask, a)
 	}
 	return true; // It didn't hit client
 }
-
-stock SortArrayFunc(elem1, elem2, array[], Handle:hndl)
+stock bool TR_DontHitEntityList(entity, mask, ArrayList a)
 {
-	ResetPack(hndl)
+	if(entity > 0) // Check if the TraceRay hit the client.
+	{
+		for(int i=0;i<a.Length;i++)
+		{
+			if(entity == a.Get(i)) return false
+		}
+	}
+	return true; // It didn't hit client
+}
+
+stock SortArrayAsc(elem1, elem2, array[], ArrayList a/*, Handle:hndl*/)
+{
+	/*ResetPack(hndl)
 	new i = ReadPackCell(hndl), z[i]
 	for(new j=0;j<i;j++) z[j] = ReadPackCell(hndl)
 	if(z[elem2] < z[elem1] || elem1 > elem2) return -1;
 	if(z[elem1] < z[elem2] || elem2 > elem1) return 1;
-	return 0;
+	return 0;*/
+	
+	if(a.Get(elem1) < a.Get(elem2)) return 1
+	if(a.Get(elem2) < a.Get(elem1)) return -1
+	return 0
+}
+
+stock SortArrayDesc(elem1, elem2, array[], ArrayList a/*, Handle:hndl*/)
+{
+	/*ResetPack(hndl)
+	new i = ReadPackCell(hndl), z[i]
+	for(new j=0;j<i;j++) z[j] = ReadPackCell(hndl)
+	if(z[elem2] < z[elem1] || elem1 > elem2) return -1;
+	if(z[elem1] < z[elem2] || elem2 > elem1) return 1;
+	return 0;*/
+	
+	if(a.Get(elem1) > a.Get(elem2)) return 1
+	if(a.Get(elem2) > a.Get(elem1)) return -1
+	return 0
+}
+
+// Get and Set
+stock int GetEntityOwnerEntity(a)
+{
+	static m_hOwnerEntity = -1
+	if(m_hOwnerEntity == -1) m_hOwnerEntity = FindSendPropInfo("CBaseEntity", "m_hOwnerEntity");
+	return GetEntDataEnt2(a, m_hOwnerEntity)
+}
+stock SetEntityOwnerEntity(a, b)
+{
+	static m_hOwnerEntity = -1
+	if(m_hOwnerEntity == -1) m_hOwnerEntity = FindSendPropInfo("CBaseEntity", "m_hOwnerEntity");
+	SetEntDataEnt2(a, m_hOwnerEntity, b)
 }
 
 // Countdown Timer
-enum CountdownTimer
+#define m_duration	4
+#define m_timestamp	8
+
+methodmap CTimer
 {
-	CountdownTimer_Null
-}
-stock CountdownTimer GetRawCountdownTimer(Address a, i)
-{
-	return view_as<CountdownTimer>(a+Address:i)
+	public static CTimer FromRaw(Address a, int i)
+	{
+		return view_as<CTimer>(a+view_as<Address>(i))
+	}
+	public static CTimer FromEntity(int a, int i)
+	{
+		return view_as<CTimer>(GetEntityAddress(a)+view_as<Address>(i))
+	}
+	public bool IsActive()
+	{
+		float f = LoadFromAddress(view_as<Address>(this)+view_as<Address>(m_timestamp), NumberType_Int32)
+		return f > 0.0 && GetGameTime() < f
+	}
+	public any Get(int timestamp)
+	{
+		return LoadFromAddress(view_as<Address>(this)+view_as<Address>(m_duration), NumberType_Int32)
+	}
+	public void Set(float d, bool durationSet=true)
+	{
+		if(durationSet) StoreToAddress(view_as<Address>(this)+view_as<Address>(m_duration), d, NumberType_Int32)
+		StoreToAddress(view_as<Address>(this)+view_as<Address>(m_timestamp), GetGameTime()+d, NumberType_Int32)
+	}
 }
 
-stock CountdownTimer GetEntityCountdownTimer(a, i)
+stock CTimer GetRawCountdownTimer(Address a, i)
 {
-	return view_as<CountdownTimer>(GetEntityAddress(a)+Address:i)
+	return view_as<CTimer>(a+Address:i)
 }
 
-stock bool IsCountdownTimerActive(CountdownTimer i)
+stock CTimer GetEntityCountdownTimer(a, i)
+{
+	return view_as<CTimer>(GetEntityAddress(a)+Address:i)
+}
+
+stock bool IsCountdownTimerActive(CTimer i)
 {
 	float f = LoadFromAddress(view_as<Address>(i)+Address:8, NumberType_Int32)
 	return f > 0.0 && GetGameTime() < f
 }
 
-stock SetCountdownTimer(CountdownTimer i, float d, bool b=true)
+stock SetCountdownTimer(CTimer i, float d, bool durationSet=true)
 {
-	if(b) StoreToAddress(view_as<Address>(i)+Address:4, d, NumberType_Int32)
+	if(durationSet) StoreToAddress(view_as<Address>(i)+Address:4, d, NumberType_Int32)
 	StoreToAddress(view_as<Address>(i)+Address:8, GetGameTime()+d, NumberType_Int32)
 }
 
-stock float GetCountdownTimer(CountdownTimer i, bool timestamp)
+stock float GetCountdownTimer(CTimer i, int timestamp)
 {
-	return LoadFromAddress(view_as<Address>(i)+Address:(timestamp?8:4), NumberType_Int32)
+	return LoadFromAddress(view_as<Address>(i)+Address:(timestamp*4), NumberType_Int32)
 }
 
-stock float GetCountdownTimerRemain(CountdownTimer i)
+stock float GetCountdownTimerRemain(CTimer i)
 {
 	float f = LoadFromAddress(view_as<Address>(i)+Address:8, NumberType_Int32)
 	if(f > 0.0 && (f = view_as<float>(LoadFromAddress(view_as<Address>(i)+Address:8, NumberType_Int32))-GetGameTime()) < 0.0) f = 0.0
