@@ -1,3 +1,11 @@
+/*====================================================
+1.1 - 2023/7/6
+	- 按键改为中键发射弹壳，左键正常输出
+
+1.0
+	- Initial release
+======================================================*/
+
 #include <IA>
 #include <IA_l4d2>
 #include <dhooks>
@@ -12,17 +20,13 @@ public Plugin myinfo=
 	name = "Shotgun Fire Shell",
 	author = "IA/NanaNana",
 	description = "Funny shit",
-	version = "1.0",
+	version = "1.1",
 	url = "https://github.com/IA-NanaNana/SourceMod-Plugins"
 }
 
 public OnAllPluginsLoaded()
 {
 	GameData h = new GameData("l4d2_shotgun_fire_shell")
-	
-	/*DHookSetFromConf((z = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_CBaseEntity, ThisPointer_CBaseEntity)), h, SDKConf_Signature, "LaunchGrenade")
-	DHookAddParam(z, HookParamType_CBaseEntity);
-	DHookEnableDetour(z, true, DH_LaunchGrenadePost)*/
 	
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(h, SDKConf_Signature, "CGrenadeLauncher::PrimaryAttack")
@@ -45,45 +49,40 @@ public OnEntityCreated(a, const String:n[])
 }
 public Action:OnPlayerRunCmd(a, &buttons, &impulse, Float:vel[3], Float:ang[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
-	if(IsClientInTeamAlive(a, 2))
+	if(buttons&IN_ZOOM)
 	{
-		int w = GetPlayerWeapon(a)
-		if(w != -1 && GetWeaponAmmoType(w) == AMMO_AUTOSHOTGUN)
+		if(!onbutton[a] && IsClientInTeamAlive(a, 2))
 		{
-			if(GetWeaponClip(w))
+			int w = GetPlayerWeapon(a)
+			if(w == -1 || !GetWeaponClip(w)) return Plugin_Continue
+			int type = GetWeaponAmmoType(w)
+			if((type == AMMO_AUTOSHOTGUN || type == AMMO_SHOTGUN) && (GetGameTime() >= GS_WeaponNextAttackTime(w) || GetEntProp(w, Prop_Send, "m_reloadState")))
 			{
-				if(buttons&IN_ATTACK)
+				shell = true
+				SetEntProp(w, Prop_Send, "m_reloadState", 0)
+				int l = GetWeaponClip(w)
+				while(l--)
 				{
-					if(!onbutton[a])
-					{
-						shell = true
-						SetEntProp(w, Prop_Send, "m_reloadState", 0)
-						int l = GetWeaponClip(w)
-						while(l--)
-						{
-							SetEntDataVector(a, m_vecPunchAngle, Float:{0.0,0.0,0.0})
-							SetEntProp(w, Prop_Send, "m_releasedFireButton", 1)
-							SetEntProp(w, Prop_Send, "m_isHoldingFireButton", 0)
-							GS_ClientNextAttackTime(a, GS_WeaponNextAttackTime(w, 1.0))
-							SDKCall(hGLPrimaryAttack, w)
-							ShotgunShell(grenade)
-						}
-						onbutton[a] = true
-						shell = false
-						// return Plugin_Continue
-					}
+					SetEntDataVector(a, m_vecPunchAngle, Float:{0.0,0.0,0.0})
+					GS_WeaponNextAttackTime(w, 1.0)
+					SetEntProp(w, Prop_Send, "m_releasedFireButton", 1)
+					SetEntProp(w, Prop_Send, "m_isHoldingFireButton", 0)
+					SDKCall(hGLPrimaryAttack, w)
+					ShotgunShell(grenade)
 				}
-				else onbutton[a] = false
+				// PrintToChatAll("%f", GS_WeaponNextAttackTime(w)-GetGameTime())
+				// GS_WeaponNextAttackTime(w, GetGameTime()+(type == AMMO_AUTOSHOTGUN ? 0.25 : 0.875))
+				shell = false
 			}
-			if(buttons&IN_RELOAD) GS_ClientNextAttackTime(a, GS_WeaponNextAttackTime(w, 1.0))
-			else GS_ClientNextAttackTime(a, GS_WeaponNextAttackTime(w, 99999.0))
 		}
+		onbutton[a] = true
 	}
+	else onbutton[a] = false
 	return Plugin_Continue
 }
 ShotgunShell(e)
 {
-	// PrintToChatAll("%i", GetWeaponOwner(w)) 
+	// PrintToChatAll("%i", e) 
 	
 	int E//, l = GetWeaponClip(w)
 	float f[3], pos[3], ang[3]//, ang2[3]
