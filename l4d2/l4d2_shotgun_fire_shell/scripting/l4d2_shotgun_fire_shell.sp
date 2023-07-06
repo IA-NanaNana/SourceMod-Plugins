@@ -155,7 +155,7 @@ MRESReturn DH_GrenadeTouch(int e, DHookParam hParam)
 	int g = GetEntityGender(e), a = GetEntityOwnerEntity(e)
 	GetEntityOrigin(e, f)
 	GetEntityRotation(e, F)
-	if(0 < b <= MaxClients && GetClientTeam(b) == 2 && GetClientTeam(a) == 2) d *= 0.35*GetFriendlyFireFactor()
+	if(0 < b <= MaxClients && GetClientTeam(b) == 2 && GetEntProp(e, Prop_Data, "m_iTeamNum") == 2) d *= 0.35*GetFriendlyFireFactor()
 	else if(!(0 < b <= MaxClients && GetPlayerZombieClass(b) == TANK))
 	{
 		TR_TraceRayFilter(f, F, MASK_SHOT, RayType_Infinite, TR_DontHitTarget, e);
@@ -191,7 +191,6 @@ MRESReturn DH_GrenadeTouch(int e, DHookParam hParam)
 	GS_EntityMaxHealth(E, GS_EntityMaxHealth(e))
 	GS_EntityHealth(E, GS_EntityHealth(e))
 	SetEntitySkin(E, GetEntitySkin(e))
-	SetEntProp(E, Prop_Data, "m_takedamage", 0);
 	SetEntProp(E, Prop_Data, "m_iTeamNum", GetEntProp(e, Prop_Data, "m_iTeamNum"))
 	SetEntityOwnerEntity(E, a)
 	SetEntityGender(E, g)
