@@ -1,3 +1,9 @@
+#include <sourcemod>
+#include <sdktools>
+#include <sdkhooks>
+#include <IA_array>
+#include <IA_math>
+
 // Fade Flag
 #define FFADE_IN            0x0001        // Just here so we don't pass 0 into the function
 #define FFADE_OUT           0x0002        // Fade out (not in)
@@ -913,6 +919,27 @@ stock KvAdd(KeyValues k, const String:t[], const y[], l)
 	ArrayAdd(z, y, l)
 	ArrayToString(z, l, s, 256)
 	k.SetString(t, s)
+}
+stock KvGetStringEx(KeyValues k, const char[]key, char[]s, l, const char[]def="")
+{
+	if(k.JumpToKey(key))
+	{
+		if(k.GotoFirstSubKey(false))
+		{
+			ArrayList list = new ArrayList(ByteCountToCells(l))
+			do
+			{
+				k.GetString(NULL_STRING, s, l)
+				list.PushString(s)
+			}while(k.GotoNextKey(false))
+			k.GoBack()
+			list.GetString(GetRandomInt(0, list.Length-1), s, l)
+			list.Close()
+		}
+		else k.GetString(NULL_STRING, s, l)
+		k.GoBack()
+	}
+	else strcopy(s, l, def)
 }
 stock KvRemoveKey(KeyValues k, const char[]key)
 {
