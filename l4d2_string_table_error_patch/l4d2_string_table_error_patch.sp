@@ -30,5 +30,5 @@ public void OnPluginStart()
 
 public void OnPluginEnd()
 {
-	StoreToAddress(pAddress+view_as<Address>(0xFD), 0x74, NumberType_Int8)
+	StoreToAddress(pAddress+view_as<Address>(0xFD), 0x75, NumberType_Int8)
 }
