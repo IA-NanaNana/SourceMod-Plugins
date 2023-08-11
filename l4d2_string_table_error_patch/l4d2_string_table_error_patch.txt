@@ -1,5 +1,16 @@
 "Games"
 {
+    "left4dead"
+    {
+		"Signatures"
+		{
+			"WriteBaselines"
+			{
+				"library"    "engine"
+				"linux"		"@_ZN28CNetworkStringTableContainer14WriteBaselinesEPKcR8bf_write"
+			}
+		}
+	}
     "left4dead2"
     {
 		"Signatures"
