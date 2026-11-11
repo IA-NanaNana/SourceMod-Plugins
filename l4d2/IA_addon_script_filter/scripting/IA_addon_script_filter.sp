@@ -1,7 +1,7 @@
 #include <sourcemod>
 #include <dhooks>
 
-// #define CONVAR_ENABLE
+#define CONVAR_ENABLE
 
 int iOS, iPatchOriValue[2]
 Handle hGetMissionInfo, hKvGetString
@@ -91,8 +91,7 @@ public OnAllPluginsLoaded()
 	ServerCommand("mission_reload"); // Need to reload the mission to get mission's vpk and path
 	// ServerExecute();
 	
-	hMissionPath = new StringMap()
-	hMissionVpk = new StringMap()
+	
 	
 	h.Close()
 	
@@ -103,8 +102,12 @@ public OnAllPluginsLoaded()
 }
 Action mission_reload(int client, const char[] command, int argc)
 {
-	hMissionPath.Clear()
-	hMissionVpk.Clear()
+	if(hMissionPath) hMissionPath.Clear()
+	else hMissionPath = new StringMap()
+
+	if(hMissionVpk) hMissionVpk.Clear()
+	else hMissionVpk = new StringMap()
+	
 	return Plugin_Continue
 }
 
@@ -126,6 +129,12 @@ MRESReturn DH_VScriptServerRunScript(DHookReturn hReturn, DHookParam hParams)
 	hParams.GetString(1, s, sizeof s)
 	if(iOS) ReplaceString(s, sizeof s, "\\", "/")
 	if(StrContains(s, "/addons/") == -1) return MRES_Ignored
+	if(!hMissionVpk)
+	{
+		PrintToServer("[ASF] Skipping addon script %s in first run", s)
+		hReturn.Value = 0
+		return MRES_Supercede
+	}
 	char copy[256]
 	SplitString(s, "/scripts/", copy, sizeof copy)
 	if(hMissionVpk.ContainsKey(copy))
